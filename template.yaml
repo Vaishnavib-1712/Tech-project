@@ -1,0 +1,119 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM template for good-1 document processing pipeline
+
+Parameters:
+  S3BucketName:
+    Type: String
+    Default: good-1
+    Description: S3 bucket for document storage
+
+Resources:
+  Good1S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketName
+
+  Good1APIGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+
+  Good1GeneratePresignedURLFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.handler
+      Runtime: python3.9
+      CodeUri: generate_presigned_url/
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3BucketName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+                - s3:GetObject
+              Resource: !Sub arn:aws:s3:::${S3BucketName}/*
+      Events:
+        APIPost:
+          Type: Api
+          Properties:
+            Path: /generate-presigned-url
+            Method: POST
+            RestApiId: !Ref Good1APIGateway
+
+  Good1TextractProcessingFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.handler
+      Runtime: python3.9
+      CodeUri: textract_lambda/
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3BucketName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: !Sub arn:aws:s3:::${S3BucketName}/*
+            - Effect: Allow
+              Action:
+                - textract:DetectDocumentText
+                - textract:AnalyzeDocument
+              Resource: '*'
+      Events:
+        S3Trigger:
+          Type: S3
+          Properties:
+            Bucket: !Ref Good1S3Bucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .pdf
+
+  Good1BedrockAnalysisFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: app.handler
+      Runtime: python3.9
+      CodeUri: bedrock_lambda/
+      Environment:
+        Variables:
+          S3_BUCKET: !Ref S3BucketName
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource: !Sub arn:aws:s3:::${S3BucketName}/*
+            - Effect: Allow
+              Action: bedrock:InvokeModel
+              Resource: arn:aws:bedrock:ap-south-1:*:model/anthropic.claude-3-sonnet-20240229-v1:0
+      Events:
+        S3Trigger:
+          Type: S3
+          Properties:
+            Bucket: !Ref Good1S3Bucket
+            Events: s3:ObjectCreated:*
+            Filter:
+              S3Key:
+                Rules:
+                  - Name: suffix
+                    Value: .pdf
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway URL"
+    Value: !Sub "https://${Good1APIGateway}.execute-api.${AWS::Region}.amazonaws.com/Prod/generate-presigned-url"
