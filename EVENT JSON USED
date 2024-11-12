@@ -1,0 +1,85 @@
+------------------BedrockAnalysisFunction-------------
+
+{
+  "Records": [
+    {
+      "eventVersion": "2.1",
+      "eventSource": "aws:s3",
+      "awsRegion": "ap-south-1",
+      "eventTime": "2024-11-11T12:34:56.000Z",
+      "eventName": "ObjectCreated:Put",
+      "s3": {
+        "bucket": {
+          "name": "good-1"
+        },
+        "object": {
+          "key": "output/example-document.txt",
+          "size": 1024,
+          "eTag": "0123456789abcdef0123456789abcdef"
+        }
+      }
+    }
+  ]
+}
+
+
+
+
+
+--------------GeneratePresignedURLFunction----------------------------
+
+
+{
+  "queryStringParameters": {
+    "file_name": "example-document.pdf"
+  }
+}
+
+
+
+
+
+
+
+---------------TextractProcessingFunction-----------------------
+
+
+
+{
+  "Records": [
+    {
+      "eventVersion": "2.1",
+      "eventSource": "aws:s3",
+      "awsRegion": "ap-southeast-1",
+      "eventTime": "2024-11-06T12:34:56.789Z",
+      "eventName": "ObjectCreated:Put",
+      "userIdentity": {
+        "principalId": "AWS:EXAMPLE123456789"
+      },
+      "requestParameters": {
+        "sourceIPAddress": "123.45.67.89"
+      },
+      "responseElements": {
+        "x-amz-request-id": "EXAMPLE123456789",
+        "x-amz-id-2": "EXAMPLE456789123"
+      },
+      "s3": {
+        "s3SchemaVersion": "1.0",
+        "configurationId": "exampleConfigRule",
+        "bucket": {
+          "name": "good-1",
+          "ownerIdentity": {
+            "principalId": "EXAMPLE"
+          },
+          "arn": "arn:aws:s3:::good-1"
+        },
+        "object": {
+          "key": "example-document.jpg",
+          "size": 12345,
+          "eTag": "abc123def456",
+          "sequencer": "EXAMPLE456789"
+        }
+      }
+    }
+  ]
+}
