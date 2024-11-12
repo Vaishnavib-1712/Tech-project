@@ -10,10 +10,10 @@ import sys
 import traceback
 import logging
 import json
-import uuid
 import boto3
 from urllib.parse import unquote_plus
 
+# Set up logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -46,36 +46,47 @@ def lambda_handler(event, context):
             bucketname = file_obj["s3"]["bucket"].get("name")
             filename = unquote_plus(file_obj["s3"]["object"].get("key", ""))
 
-            if not filename:
-                logger.error("File key missing in the event.")
-                raise ValueError("File key missing in the event.")
+            # Check if the file is in .jpg format
+            if not filename.lower().endswith(".jpg"):
+                logger.error("The file is not in .jpg format.")
+                raise ValueError("The file is not in .jpg format.")
 
             logger.info(f"Bucket: {bucketname} ::: Key: {filename}")
 
             # Use Textract to analyze the document
-            response = textract.detect_document_text(
-                Document={
-                    "S3Object": {
-                        "Bucket": bucketname,
-                        "Name": filename,
+            try:
+                response = textract.detect_document_text(
+                    Document={
+                        "S3Object": {
+                            "Bucket": bucketname,
+                            "Name": filename,
+                        }
                     }
-                }
-            )
-            logger.info(json.dumps(response))
+                )
+            except Exception as e:
+                logger.error(f"Textract API call failed: {str(e)}")
+                raise
+
+            logger.info("Textract response: %s", json.dumps(response))
 
             # Extract text at the specified level (e.g., LINE or WORD)
             raw_text = extract_text(response, extract_by="LINE")
             logger.info("Extracted Text: %s", raw_text)
 
-            # Generate a new file name for the output text file
-            output_key = f"output/{filename.split('/')[-1].split('.')[0]}_{uuid.uuid4().hex}.txt"
+            # Generate the output file name without a unique identifier
+            output_key = f"output/{filename.split('/')[-1].split('.')[0]}.txt"
 
             # Save the extracted text back to the same S3 bucket
-            s3.put_object(
-                Bucket=bucketname,
-                Key=output_key,
-                Body="\n".join(raw_text),
-            )
+            try:
+                s3.put_object(
+                    Bucket=bucketname,
+                    Key=output_key,
+                    Body="\n".join(raw_text),
+                )
+                logger.info(f"Text saved successfully to {output_key}")
+            except Exception as e:
+                logger.error(f"Failed to save extracted text to S3: {str(e)}")
+                raise
 
             return {
                 "statusCode": 200,
