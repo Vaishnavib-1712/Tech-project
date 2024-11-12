@@ -78,7 +78,7 @@ Resources:
               S3Key:
                 Rules:
                   - Name: suffix
-                    Value: .pdf
+                    Value: .jpg
 
   Good1BedrockAnalysisFunction:
     Type: AWS::Serverless::Function
@@ -111,7 +111,7 @@ Resources:
               S3Key:
                 Rules:
                   - Name: suffix
-                    Value: .pdf
+                    Value: .jpg
 
 Outputs:
   ApiUrl:
